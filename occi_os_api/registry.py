@@ -307,8 +307,7 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         if res_tmp:
             entity.mixins.append(res_tmp)
 
-        os_id = instance['image_ref']
-        image_id = vm.retrieve_image(os_id, context)['id']
+        image_id = instance['image_ref']
         image_tmp = self.get_category('/' + image_id + '/', extras)
         if image_tmp:
             entity.mixins.append(image_tmp)
