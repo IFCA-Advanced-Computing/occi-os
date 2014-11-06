@@ -151,17 +151,25 @@ class StorageLinkBackend(backend.KindBackend):
         Creates a link from a compute instance to a storage volume.
         The user must specify what the device id is to be.
         """
-        context = extras['nova_ctx']
-        instance_id = link.source.attributes['occi.core.id']
-        volume_id = link.target.attributes['occi.core.id']
-        mount_point = link.attributes['occi.storagelink.deviceid']
+        volume_id = link.target.attributes.get('occi.core.id', '')
+        instance_id = link.source.attributes.get('occi.core.id', '')
+        registry = extras['registry']
 
-        vm.attach_volume(instance_id, volume_id, mount_point, context)
+        try:
+            registry.get_resource('/compute/%s' % instance_id, extras)
+        except KeyError:
+            # image is not in the registry -> link created with the VM
+            # will be handled elsewhere
+            pass
+        else:
+            context = extras['nova_ctx']
+            device_id = link.attributes.get('occi.storagelink.deviceid')
+            device_name = vm.attach_volume(instance_id, volume_id,
+                                           device_id, context)
+            link.attributes['occi.storagelink.deviceid'] = device_name
 
         link.attributes['occi.core.id'] = str(uuid.uuid4())
-        link.attributes['occi.storagelink.deviceid'] = \
-            link.attributes['occi.storagelink.deviceid']
-        link.attributes['occi.storagelink.mountpoint'] = ''
+        # link.attributes['occi.storagelink.mountpoint'] = ''
         link.attributes['occi.storagelink.state'] = 'active'
 
     def delete(self, link, extras):
