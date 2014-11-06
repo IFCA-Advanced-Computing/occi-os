@@ -20,7 +20,7 @@
 Backends for the storage resource.
 """
 
-# pylint: disable=R0201,W0232,W0613
+#pylint: disable=R0201,W0232,W0613
 from datetime import date
 
 import uuid
@@ -46,10 +46,15 @@ class StorageBackend(backend.KindBackend, backend.ActionBackend):
         context = extras['nova_ctx']
         if 'occi.storage.size' not in entity.attributes:
             raise AttributeError('size attribute not found!')
+        size = entity.attributes['occi.storage.size']
 
-        new_volume = storage.create_storage(entity.attributes['occi.storage'
-                                                              '.size'],
-                                            context)
+        name = ''
+        if 'occi.core.title' not in entity.attributes:
+            name = str(uuid.uuid4())
+        else:
+            name = entity.attributes['occi.core.title']
+
+        new_volume = storage.create_storage(size, name, context)
         vol_id = new_volume['id']
 
         # Work around problem that instance is lazy-loaded...
@@ -76,6 +81,7 @@ class StorageBackend(backend.KindBackend, backend.ActionBackend):
 
         volume = storage.get_storage(v_id, extras['nova_ctx'])
 
+        entity.attributes['occi.core.title'] = str(volume['display_name'])
         entity.attributes['occi.storage.size'] = str(float(volume['size']))
 
         # OS volume states:
@@ -147,39 +153,33 @@ class StorageLinkBackend(backend.KindBackend):
         Creates a link from a compute instance to a storage volume.
         The user must specify what the device id is to be.
         """
-        context = extras['nova_ctx']
-        instance_id = link.source.attributes['occi.core.id']
-        volume_id = link.target.attributes['occi.core.id']
-        if 'occi.storagelink.deviceid' in link.attributes:
-            mount_point = link.attributes['occi.storagelink.deviceid']
+        volume_id = link.target.attributes.get('occi.core.id', '')
+        instance_id = link.source.attributes.get('occi.core.id', '')
+        registry = extras['registry']
+
+        try:
+            registry.get_resource('/compute/%s' % instance_id, extras)
+        except KeyError:
+            # image is not in the registry -> link created with the VM
+            # will be handled elsewhere
+            pass
         else:
-            # get the list of linked mount points
-            mp = []
-            for sl in link.source.links:
-                if 'occi.storagelink.mountpoint' in sl.attributes:
-                    mp.append(sl.attributes['occi.storagelink.mountpoint'])
-
-            # generate a mount point who is not already in use
-            i = 100  # Start from d
-            mount_point = "/dev/vd" + chr(i)
-            while mount_point in mp:
-                i = i + 1
-                mount_point = "/dev/vd" + chr(i)
-
-        # If hostname is set and state is not, this mean that we are requesting
-        # a new instance with links, so the instance does not exist yet
-        if ('occi.compute.hostname' not in link.source.attributes
-                or 'occi.compute.state' in link.source.attributes):
-            vm.attach_volume(instance_id, volume_id, mount_point, context)
+            context = extras['nova_ctx']
+            device_id = link.attributes.get('occi.storagelink.deviceid')
+            device_name = vm.attach_volume(instance_id, volume_id,
+                                           device_id, context)
+            link.attributes['occi.storagelink.deviceid'] = device_name
 
         link.attributes['occi.core.id'] = str(uuid.uuid4())
-        link.attributes['occi.storagelink.deviceid'] = mount_point
-        link.attributes['occi.storagelink.mountpoint'] = mount_point
+        # link.attributes['occi.storagelink.mountpoint'] = ''
         link.attributes['occi.storagelink.state'] = 'active'
 
     def delete(self, link, extras):
         """
         Unlinks the the compute from the storage resource.
         """
+        instance_id = link.source.attributes['occi.core.id']
         volume_id = link.target.attributes['occi.core.id']
-        vm.detach_volume(volume_id, extras['nova_ctx'])
+
+        volume = storage.get_storage(volume_id, extras['nova_ctx'])
+        vm.detach_volume(instance_id, volume, extras['nova_ctx'])

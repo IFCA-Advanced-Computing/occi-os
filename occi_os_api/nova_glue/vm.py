@@ -20,7 +20,7 @@
 VM related 'glue' :-)
 """
 
-# pylint: disable=R0914,W0142,R0912,R0915
+#pylint: disable=R0914,W0142,R0912,R0915
 
 from nova import compute
 from nova import utils
@@ -65,7 +65,7 @@ def create_vm(entity, context):
     sg_names = []
     availability_zone = None
     config_drive = None
-    block_device_mapping = None
+    block_device_mapping = []
     kernel_id = ramdisk_id = None
     auto_disk_config = None
     scheduler_hints = None
@@ -95,21 +95,24 @@ def create_vm(entity, context):
     if not os_template:
         raise AttributeError('Please provide a valid OS Template.')
 
-    # Parse storage links
-    for link in entity.links:
-        if 'occi.storagelink.state' not in link.attributes:
-            continue
-        block_device_mapping = [
-            {
-                "volume_size": "",
-                "volume_id": link.target.attributes['occi.core.id'],
-                "delete_on_termination": "0",
-                "device_name": link.attributes['occi.storagelink.mountpoint']}]
-
     if resource_template:
         inst_type = flavors.get_flavor_by_flavor_id(resource_template.res_id)
     else:
         inst_type = None
+
+    # Create block device mapping
+    for link in entity.links:
+        if not 'occi.storagelink.state' in link.attributes:
+            continue
+        mapping = {
+            'volume_id': link.target.attributes['occi.core.id'],
+            'delete_on_termination': '0',
+        }
+        device_id = link.attributes.get('occi.storagelink.deviceid')
+        if device_id:
+            mapping['device_name'] = device_id
+        block_device_mapping.append(mapping)
+
     # make the call
     try:
         (instances, _reservation_id) = COMPUTE_API.create(
@@ -255,7 +258,19 @@ def start_vm(uid, context):
     """
     instance = get_vm(uid, context)
     try:
-        COMPUTE_API.resume(context, instance)
+        if instance['vm_state'] in [vm_states.PAUSED]:
+            COMPUTE_API.unpause(context, instance)
+        elif instance['vm_state'] in [vm_states.SUSPENDED]:
+            COMPUTE_API.resume(context, instance)
+        # the following will probably not happen, as COMPUTE_API.stop()
+        # is never called.
+        elif instance['vm_state'] in [vm_states.STOPPED]:
+            COMPUTE_API.start(context, instance)
+        else:
+            raise exceptions.HTTPError(500, ("Unable to map start to "
+                                             "appropriate OS action."))
+    except exceptions.HTTPError as e:
+        raise e
     except Exception as e:
         raise AttributeError(e.message)
 
@@ -304,42 +319,40 @@ def restart_vm(uid, method, context):
         raise AttributeError(e.message)
 
 
-def attach_volume(instance_id, volume_id, mount_point, context):
+def attach_volume(instance_id, volume_id, device_name, context):
     """
     Attaches a storage volume.
 
     instance_id -- Id of the VM.
     volume_id -- Id of the storage volume.
-    mount_point -- Where to mount.
+    device_name -- Where to attach.
     context -- The os security context.
+
+    Returns the device name where the volume is attached
     """
     instance = get_vm(instance_id, context)
     try:
-        vol_instance = COMPUTE_API.volume_api.get(context, volume_id)
-        volume_id = vol_instance['id']
-        COMPUTE_API.attach_volume(
-            context,
-            instance,
-            volume_id,
-            mount_point)
+        return COMPUTE_API.attach_volume(context,
+                                         instance,
+                                         volume_id,
+                                         device_name)
     except Exception as e:
         raise AttributeError(e.message)
 
 
-def detach_volume(volume_id, context):
+def detach_volume(instance_id, volume, context):
     """
     Detach a storage volume.
 
-    volume_id -- Id of the volume.
+    volume -- Volume description.
+    instance_id -- Id of the VM.
     context -- the os context.
     """
     try:
-        volume = COMPUTE_API.volume_api.get(context, volume_id)
-        instance_id = volume['instance_uuid']
         instance = get_vm(instance_id, context)
         COMPUTE_API.detach_volume(context, instance, volume)
     except Exception as e:
-        raise AttributeError(e.message)
+        raise AttributeError(e)
 
 
 def set_password_for_vm(uid, password, context):
@@ -439,8 +452,6 @@ def get_vm_state(uid, context):
 
 # Image management
 
-# TODO: add comments
-
 
 def retrieve_image(uid, context):
     """
@@ -453,8 +464,14 @@ def retrieve_image(uid, context):
 
 
 def retrieve_images(context):
+    """
+    Retrieve list of images.
+    """
     return COMPUTE_API.image_service.detail(context)
 
 
 def retrieve_flavors(context):
+    """
+    Retrieve list of flavors.
+    """
     return flavors.get_all_flavors(context)

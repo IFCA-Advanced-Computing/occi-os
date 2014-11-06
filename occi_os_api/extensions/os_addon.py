@@ -20,7 +20,7 @@
 Set of extensions to get OCCI work with OpenStack.
 """
 
-# pylint: disable=W0232,R0912,R0201,R0903
+#pylint: disable=W0232,R0912,R0201,R0903
 
 from occi import core_model
 

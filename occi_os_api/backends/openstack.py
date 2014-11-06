@@ -20,7 +20,7 @@
 The compute resource backend for OpenStack.
 """
 
-# pylint: disable=W0232,R0201
+#pylint: disable=W0232,R0201
 import random
 from occi import backend
 from occi import exceptions
@@ -31,7 +31,6 @@ from occi_os_api.nova_glue import security
 
 
 class OsComputeBackend(backend.MixinBackend, backend.ActionBackend):
-
     """
     The OpenStackCompute backend.
     """
@@ -87,7 +86,6 @@ class OsComputeBackend(backend.MixinBackend, backend.ActionBackend):
 
 
 class OsNetLinkBackend(backend.MixinBackend, backend.ActionBackend):
-
     """
     The OpenStack network link backend.
     """
@@ -96,7 +94,6 @@ class OsNetLinkBackend(backend.MixinBackend, backend.ActionBackend):
 
 
 class SecurityGroupBackend(backend.UserDefinedMixinBackend):
-
     """
     Security Group backend.
     """
@@ -129,7 +126,6 @@ class SecurityGroupBackend(backend.UserDefinedMixinBackend):
 
 
 class SecurityRuleBackend(backend.KindBackend):
-
     """
     Security rule backend.
     """
@@ -152,8 +148,9 @@ class SecurityRuleBackend(backend.KindBackend):
                   str(security_group)
             raise AttributeError(msg)
 
-        security.create_rule(sec_mixin.term, security_group['id'], [sg_rule],
-                             context)
+        rule = security.create_rule(sec_mixin.term, security_group['id'],
+                                    [sg_rule], context)
+        entity.attributes['occi.core.id'] = str(rule['id'])
 
     def delete(self, entity, extras):
         """
@@ -177,7 +174,6 @@ def make_sec_rule(entity, sec_grp_id):
     name = random.randrange(0, 99999999)
     sg_rule = {'id': name,
                'parent_group_id': sec_grp_id}
-    entity.attributes['occi.core.id'] = str(sg_rule['id'])
     prot = \
         entity.attributes['occi.network.security.protocol'].lower().strip()
     if prot in ('tcp', 'udp', 'icmp'):

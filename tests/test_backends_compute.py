@@ -19,13 +19,11 @@ Unittest for the Compute Backend.
 
 #pylint: disable=W0102,C0103,R0904
 
-from nova.openstack.common import gettextutils
-gettextutils.install('nova')
-
+import mox
 import unittest
 
 # dependency from nova :-)
-import mox
+
 from nova.compute import vm_states
 
 from occi import core_model

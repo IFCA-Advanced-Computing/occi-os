@@ -22,9 +22,6 @@ Test network resource backend.
 
 #pylint: disable=W0102,C0103,R0904,R0801
 
-from nova.openstack.common import gettextutils
-gettextutils.install('nova')
-
 import mox
 import unittest
 
@@ -71,6 +68,7 @@ class TestStorageBackend(unittest.TestCase):
 
         self.mox.StubOutWithMock(nova_glue.storage, 'create_storage')
         nova_glue.storage.create_storage(mox.IsA(object),
+                                         mox.IsA(object),
                                          mox.IsA(object)).\
             AndReturn({'id': '1'})
         self.mox.StubOutWithMock(nova_glue.storage, 'get_storage')
@@ -107,6 +105,7 @@ class TestStorageBackend(unittest.TestCase):
 
         self.mox.StubOutWithMock(nova_glue.storage, 'create_storage')
         nova_glue.storage.create_storage(mox.IsA(object),
+                                         mox.IsA(object),
                                          mox.IsA(object)).\
             AndReturn({'id': '1'})
         self.mox.StubOutWithMock(nova_glue.storage, 'get_storage')
@@ -136,7 +135,9 @@ class TestStorageBackend(unittest.TestCase):
         self.mox.StubOutWithMock(nova_glue.storage, 'get_storage')
         nova_glue.storage.get_storage(mox.IsA(object),
                                       mox.IsA(object)).\
-            AndReturn({'status': 'available', 'size': '1'})
+            AndReturn({'status': 'available',
+                       'size': '1',
+                       'name': 'foobar'})
 
         self.mox.ReplayAll()
 
@@ -154,7 +155,9 @@ class TestStorageBackend(unittest.TestCase):
         self.mox.StubOutWithMock(nova_glue.storage, 'get_storage')
         nova_glue.storage.get_storage(mox.IsA(object),
                                       mox.IsA(object)).\
-            AndReturn({'status': 'bla', 'size': '1'})
+            AndReturn({'status': 'unavailable',
+                       'size': '1',
+                       'name': 'foobar'})
 
         self.mox.ReplayAll()
 
@@ -283,13 +286,20 @@ class TestStorageLinkBackend(unittest.TestCase):
         Test deattachement.
         """
         source = mox.MockObject(core_model.Resource)
+        source.attributes = {'occi.core.id': 'foo'}
         target = mox.MockObject(core_model.Resource)
         target.attributes = {'occi.core.id': 'bar'}
 
         link = core_model.Link('foo', None, [], source, target)
 
+        self.mox.StubOutWithMock(nova_glue.storage, 'get_storage')
+        nova_glue.storage.get_storage(mox.IsA(object),
+                                      mox.IsA(object)).\
+            AndReturn({'status': 'available', 'size': '1'})
+
         self.mox.StubOutWithMock(nova_glue.vm, 'detach_volume')
-        nova_glue.vm.detach_volume(mox.IsA(object), mox.IsA(object))
+        nova_glue.vm.detach_volume(mox.IsA(object), mox.IsA(object),
+                                   mox.IsA(object))
 
         self.mox.ReplayAll()
 

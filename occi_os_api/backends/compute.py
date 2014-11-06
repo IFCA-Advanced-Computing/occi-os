@@ -20,7 +20,7 @@
 The compute resource backend for OpenStack.
 """
 
-# pylint: disable=W0232,R0201
+#pylint: disable=W0232,R0201
 
 from occi_os_api.extensions import os_mixins
 from occi_os_api.extensions import os_addon
@@ -31,7 +31,6 @@ from occi.extensions import infrastructure
 
 
 class ComputeBackend(KindBackend, ActionBackend):
-
     """
     The compute backend.
     """

@@ -216,7 +216,7 @@ class SystemTest(unittest.TestCase):
         LOG.debug(get_qi_listing(self.token)['category'])
 
         # create VM
-        cats = [RES_TPL_NANO, 
+        cats = [RES_TPL_NANO,
                 self.os_tpl,
                 'compute; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
@@ -238,6 +238,34 @@ class SystemTest(unittest.TestCase):
         # trigger stop
         trigger_action(self.token, vm_location + '?action=stop',
                        'stop; scheme="http://schemas.ogf.org/occi/'
+                       'infrastructure/compute/action#"')
+
+        # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="inactive"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
+        # trigger start
+        trigger_action(self.token, vm_location + '?action=start',
+                       'start; scheme="http://schemas.ogf.org/occi/'
+                       'infrastructure/compute/action#"')
+
+        # wait
+        cont = False
+        while not cont:
+            if 'occi.compute.state="active"' in \
+                    get_node(self.token, vm_location)['x-occi-attribute']:
+                cont = True
+            else:
+                time.sleep(5)
+
+        # trigger suspend
+        trigger_action(self.token, vm_location + '?action=suspend',
+                       'suspend; scheme="http://schemas.ogf.org/occi/'
                        'infrastructure/compute/action#"')
 
         # wait
@@ -331,6 +359,7 @@ class SystemTest(unittest.TestCase):
         destroy_node(self.token, float_ip_location)
 
         # change pw
+        # XXX: currently not working as OS libvirt driver does not support it.
         #LOG.debug(trigger_action(self.token, vm_location + '?action=chg_pwd',
         #                         'chg_pwd; scheme="http://schemas.'
         #                         'openstack.org/instance/action#"',
@@ -366,7 +395,7 @@ class SystemTest(unittest.TestCase):
         # create volume
         cats = ['storage; scheme="http://schemas.ogf'
                 '.org/occi/infrastructure#"']
-        attrs = ['occi.storage.size = 1.0']
+        attrs = ['occi.storage.size = 1.0', 'occi.core.title = foobar']
         vol_location = create_node(self.token, cats, attrs)
 
         time.sleep(25)
@@ -395,14 +424,11 @@ class SystemTest(unittest.TestCase):
         time.sleep(30)
 
         # deassociate storage vol - see #15
-        print 'booja 0'
         destroy_node(self.token, link_location)
 
         time.sleep(15)
-        print 'booja'
         destroy_node(self.token, vol_location)
 
-        print 'booja2'
         # wait
         cont = False
         while not cont:
@@ -412,7 +438,6 @@ class SystemTest(unittest.TestCase):
             else:
                 time.sleep(5)
 
-        print 'booja3'
         # Create a Image from an Active VM
         LOG.debug(trigger_action(self.token, vm_location + '?action='
                                                            'create_image',
@@ -472,7 +497,7 @@ class SystemTest(unittest.TestCase):
                 'scheme="http://schemas.openstack.org/compute/instance#"; ',
                 'compute; scheme="http://schemas.ogf.org/occi/'
                 'infrastructure#"']
-        attrs = ['org.openstack.compute.user_data="%s"' % user_data] 
+        attrs = ['org.openstack.compute.user_data="%s"' % user_data]
         vm_location = create_node(self.token, cats, attrs)
 
         # XXX

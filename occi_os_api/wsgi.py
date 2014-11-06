@@ -64,7 +64,6 @@ MIXIN_BACKEND = backend.MixinBackend()
 
 
 class OCCIApplication(occi_wsgi.Application, wsgi.Application):
-
     """
     Adapter which 'translates' represents a nova WSGI application into and OCCI
     WSGI application.
@@ -165,8 +164,16 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         information retrieved from glance (shared and user-specific).
         """
         template_schema = 'http://schemas.openstack.org/template/os#'
-
         images = vm.retrieve_images(extras['nova_ctx'])
+
+        # delete those which are delete through different API.
+        os_lst = [occify_terms(item['name']) for item in images]
+        occi_lst = [item.term for item in self.registry.get_categories(
+            extras) if item.scheme == template_schema]
+        for item in list(set(occi_lst) - set(os_lst)):
+            self.registry.delete_mixin(os_mixins.OsTemplate(template_schema,
+                                                            item),
+                                       extras)
 
         for img in images:
             # If the image is a kernel or ram one
@@ -200,6 +207,15 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
         template_schema = 'http://schemas.openstack.org/template/resource#'
         os_flavours = vm.retrieve_flavors(extras['nova_ctx'])
 
+        # delete those which are delete through different API.
+        os_lst = [occify_terms(str(item)) for item in os_flavours.keys()]
+        occi_lst = [item.term for item in self.registry.get_categories(
+            extras) if item.scheme == template_schema]
+        for item in list(set(occi_lst) - set(os_lst)):
+            self.registry.delete_mixin(os_mixins.ResourceTemplate(template_schema,
+                                                                  item),
+                                       extras)
+
         for itype in os_flavours.values():
             ctg_term = occify_terms(itype['name'])
             resource_template = os_mixins.ResourceTemplate(
@@ -209,7 +225,6 @@ class OCCIApplication(occi_wsgi.Application, wsgi.Application):
                 related=[infrastructure.RESOURCE_TEMPLATE],
                 title='Flavor: %s ' % itype['name'],
                 location='/' + quote(ctg_term) + '/')
-
             try:
                 self.registry.get_backend(resource_template, extras)
             except AttributeError:
