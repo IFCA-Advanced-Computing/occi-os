@@ -102,7 +102,7 @@ class SecurityGroupBackend(backend.UserDefinedMixinBackend):
         """
         Creates the security group as specified in the request.
         """
-        #do not recreate default openstack security groups
+        # do not recreate default openstack security groups
         if category.scheme == \
                 'http://schemas.openstack.org/infrastructure/security/group#':
             return
@@ -143,7 +143,7 @@ class SecurityRuleBackend(backend.KindBackend):
         sg_rule = make_sec_rule(entity, security_group['id'])
 
         if security_group_rule_exists(security_group, sg_rule):
-            #This rule already exists in group
+            # This rule already exists in group
             msg = 'This rule already exists in group. %s' %\
                   str(security_group)
             raise AttributeError(msg)
@@ -182,13 +182,13 @@ def make_sec_rule(entity, sec_grp_id):
         raise AttributeError('Invalid protocol defined:' + prot)
     from_p = entity.attributes['occi.network.security.to'].strip()
     from_p = int(from_p)
-    if (type(from_p) is int) and 0 < from_p <= 65535:
+    if (isinstance(from_p, int)) and 0 < from_p <= 65535:
         sg_rule['from_port'] = from_p
     else:
         raise AttributeError('No valid from port defined.')
     to_p = entity.attributes['occi.network.security.to'].strip()
     to_p = int(to_p)
-    if (type(to_p) is int) and 0 < to_p <= 65535:
+    if (isinstance(to_p, int)) and 0 < to_p <= 65535:
         sg_rule['to_port'] = to_p
     else:
         raise AttributeError('No valid to port defined.')

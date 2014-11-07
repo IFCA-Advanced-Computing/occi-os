@@ -47,7 +47,7 @@ from urllib import quote
 
 LOG = log.getLogger(__name__)
 
-#Setup options
+# Setup options
 OCCI_OPTS = [
     cfg.IntOpt("occiapi_listen_port",
                default=8787,

@@ -66,6 +66,8 @@ from which you get the new service ID and use it to register the OCCI endpoint i
 
 	$ keystone endpoint-create --service_id 8e6de5d0d7624584bed6bec9bef7c9e0 --region RegionOne --publicurl http://$HOSTNAME:8787/ --internalurl  http://$HOSTNAME:8787/ --adminurl http://$HOSTNAME:8787/
 	
+where the \<occi_service_id\> is the one obtained by the keystone service-create command
+
 #### Hacking the port number
 
 (Optional) You can set the port option via the `nova.conf` configuration

@@ -30,6 +30,7 @@ class OsTemplate(core_model.Mixin):
     Represents the OS Template mechanism as per OCCI specification.
     An OS template is equivalent to an image in OpenStack
     """
+
     def __init__(self, scheme, term, os_id=None, related=None, actions=None,
                  title='', attributes=None, location=None):
         super(OsTemplate, self).__init__(scheme, term, related, actions,
