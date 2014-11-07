@@ -34,7 +34,6 @@ from occi_os_api.nova_glue import vm
 
 
 class StorageBackend(backend.KindBackend, backend.ActionBackend):
-
     """
     Backend to handle storage resources.
     """
@@ -143,7 +142,6 @@ class StorageBackend(backend.KindBackend, backend.ActionBackend):
 
 
 class StorageLinkBackend(backend.KindBackend):
-
     """
     A backend for the storage links.
     """
