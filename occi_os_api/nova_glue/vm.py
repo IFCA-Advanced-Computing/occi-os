@@ -65,7 +65,7 @@ def create_vm(entity, context):
     sg_names = []
     availability_zone = None
     config_drive = None
-    block_device_mapping = None
+    block_device_mapping = []
     kernel_id = ramdisk_id = None
     auto_disk_config = None
     scheduler_hints = None
@@ -99,6 +99,20 @@ def create_vm(entity, context):
         inst_type = flavors.get_flavor_by_flavor_id(resource_template.res_id)
     else:
         inst_type = None
+
+    # Create block device mapping
+    for link in entity.links:
+        if not 'occi.storagelink.state' in link.attributes:
+            continue
+        mapping = {
+            'volume_id': link.target.attributes['occi.core.id'],
+            'delete_on_termination': '0',
+        }
+        device_id = link.attributes.get('occi.storagelink.deviceid')
+        if device_id:
+            mapping['device_name'] = device_id
+        block_device_mapping.append(mapping)
+
     # make the call
     try:
         (instances, _reservation_id) = COMPUTE_API.create(
@@ -253,7 +267,8 @@ def start_vm(uid, context):
         elif instance['vm_state'] in [vm_states.STOPPED]:
             COMPUTE_API.start(context, instance)
         else:
-            raise exceptions.HTTPError(500, "Unable to map start to appropriate OS action.")
+            raise exceptions.HTTPError(500, ("Unable to map start to "
+                                             "appropriate OS action."))
     except exceptions.HTTPError as e:
         raise e
     except Exception as e:
@@ -304,22 +319,23 @@ def restart_vm(uid, method, context):
         raise AttributeError(e.message)
 
 
-def attach_volume(instance_id, volume_id, mount_point, context):
+def attach_volume(instance_id, volume_id, device_name, context):
     """
     Attaches a storage volume.
 
     instance_id -- Id of the VM.
     volume_id -- Id of the storage volume.
-    mount_point -- Where to mount.
+    device_name -- Where to attach.
     context -- The os security context.
+
+    Returns the device name where the volume is attached
     """
     instance = get_vm(instance_id, context)
     try:
-        COMPUTE_API.attach_volume(
-            context,
-            instance,
-            volume_id,
-            mount_point)
+        return COMPUTE_API.attach_volume(context,
+                                         instance,
+                                         volume_id,
+                                         device_name)
     except Exception as e:
         raise AttributeError(e.message)
 

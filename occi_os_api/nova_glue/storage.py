@@ -27,6 +27,14 @@ from occi import exceptions
 VOLUME_API = compute.API().volume_api
 
 
+def get_attached_storage(vm_id, context):
+    """
+    Retrieve volumes attached to a given VM
+    """
+    return [v for v in VOLUME_API.get_all(context)
+            if v['status'] == 'in-use' and v['instance_uuid'] == vm_id]
+
+
 def create_storage(size, name, context):
     """
     Create a storage instance.

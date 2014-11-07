@@ -278,8 +278,12 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         """
         Update an occi compute resource instance.
         """
-        # TODO: implement update of mixins and links (remove old mixins and
-        # links)!
+        if entity.attributes.get('occi.core.id'):
+            # only update if the entity is fully created
+            # (i.e. has the occi.core.id defined)
+            # TODO: implement update of mixins and links (remove old mixins and
+            # links and create new ones)!
+            pass
         return entity
 
     def _construct_occi_compute(self, identifier, extras):
@@ -301,7 +305,18 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                                      [os_addon.OS_VM])
         result.append(entity)
 
-        # 2. os and res templates
+        # 2. Add it to cache so we don't get into infinite loops
+        #    if linking storage
+        self.cache[(entity.identifier, context.user_id)] = entity
+
+        # 3. Storage links
+        storage_links = storage.get_attached_storage(identifier, context)
+        for item in storage_links:
+            # this will create the resource and the link to this compute
+            self.get_resource(infrastructure.STORAGE.location + item['id'],
+                              extras)
+
+        # 3. os and res templates
         flavor_id = int(instance['instance_type_id'])
         res_tmp = self.get_category('/' + str(flavor_id) + '/', extras)
         if res_tmp:
@@ -313,21 +328,18 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         if image_tmp:
             entity.mixins.append(image_tmp)
 
-        # 3. network links & get links from cache!
+        # 4. network links & get links from cache!
         net_links = net.get_network_details(identifier, context)
         for item in net_links['public']:
-            link = self._construct_network_link(item, entity, self.pub_net,
-                                                extras)
-            result.append(link)
+            self._construct_network_link(item, entity, self.pub_net, extras)
         for item in net_links['admin']:
-            link = self._construct_network_link(item, entity, self.adm_net,
-                                                extras)
-            result.append(link)
+            self._construct_network_link(item, entity, self.adm_net, extras)
 
-        # core.id and cache it!
+        # core.id (last thing so _update_occi_compute does not loop)
         entity.attributes['occi.core.id'] = identifier
         entity.extras = self.get_extras(extras)
-        self.cache[(entity.identifier, context.user_id)] = entity
+
+        result.extend(entity.links)
 
         return result
 
@@ -363,6 +375,7 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
                                    infrastructure.STORAGELINK, [], source,
                                    entity)
             link.extras = self.get_extras(extras)
+            link.attributes['occi.storagelink.deviceid'] = stor['mountpoint']
             source.links.append(link)
             result.append(link)
             self.cache[(link.identifier, context.user_id)] = link
