@@ -34,22 +34,12 @@ NETWORK_API = compute.API().network_api
 LOG = logging.getLogger(__name__)
 
 
-def get_network_details(uid, context):
+def _build_net_info(net_info):
     """
-    Extracts the VMs network adapter information.
-
-    uid -- Id of the VM.
-    context -- The os context.
+    builds the network information as expected by OCCI
     """
-    vm_instance = vm.get_vm(uid, context)
-
     result = {'public': [], 'admin': []}
-    try:
-        net_info = NETWORK_API.get_instance_nw_info(context, vm_instance)[0]
-    except IndexError:
-        LOG.warn('Unable to retrieve network information - this is because '
-                 'of OpenStack!!')
-        return result
+
     gw = net_info['network']['subnets'][0]['gateway']['address']
     mac = net_info['address']
 
@@ -72,6 +62,36 @@ def get_network_details(uid, context):
                             'allocation': 'static'})
 
     return result
+
+
+def get_network_details_from_instance(instance, context):
+    """
+    Tries to get network details from cached info
+    otherwise go to the standard get_network_details
+    """
+    cached_info = instance.get('info_cache', {}).get('network_info', {})
+    if cached_info:
+        LOG.debug("Using cached information from instance!")
+        return _build_net_info(cached_info[0])
+    else:
+        return get_network_details(instance['uuid'], context)
+
+
+def get_network_details(uid, context):
+    """
+    Extracts the VMs network adapter information.
+
+    uid -- Id of the VM.
+    context -- The os context.
+    """
+    vm_instance = vm.get_vm(uid, context)
+    try:
+        net_info = NETWORK_API.get_instance_nw_info(context, vm_instance)[0]
+        return _build_net_info(net_info)
+    except IndexError:
+        LOG.warn('Unable to retrieve network information - this is because '
+                 'of OpenStack!!')
+        return {'public': [], 'admin': []}
 
 
 def add_floating_ip(uid, pool_name, context):

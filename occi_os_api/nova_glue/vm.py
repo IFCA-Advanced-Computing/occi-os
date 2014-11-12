@@ -207,7 +207,7 @@ def delete_vm(uid, context):
     context -- the os context
     """
     try:
-        instance = get_vm(uid, context)
+        instance = get_vm(uid, context, want_objects=True)
         COMPUTE_API.delete(context, instance)
     except Exception as error:
         raise exceptions.HTTPError(500, str(error))
@@ -220,7 +220,7 @@ def suspend_vm(uid, context):
     uid -- id of the instance
     context -- the os context
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
 
     try:
         COMPUTE_API.pause(context, instance)
@@ -236,7 +236,7 @@ def snapshot_vm(uid, image_name, context):
     image_name -- name of the new image
     context -- the os context
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
     try:
         COMPUTE_API.snapshot(context,
                              instance,
@@ -256,7 +256,7 @@ def start_vm(uid, context):
     state -- the state the VM is in (str)
     context -- the os context
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
     try:
         if instance['vm_state'] in [vm_states.PAUSED]:
             COMPUTE_API.unpause(context, instance)
@@ -284,7 +284,7 @@ def stop_vm(uid, context):
     uid -- id of the instance
     context -- the os context
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
 
     try:
         COMPUTE_API.suspend(context, instance)
@@ -305,7 +305,7 @@ def restart_vm(uid, method, context):
     method -- how the machine should be restarted.
     context -- the os context
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
 
     if method in ('graceful', 'warm'):
         reboot_type = 'SOFT'
@@ -330,7 +330,7 @@ def attach_volume(instance_id, volume_id, device_name, context):
 
     Returns the device name where the volume is attached
     """
-    instance = get_vm(instance_id, context)
+    instance = get_vm(instance_id, context, want_objects=True)
     try:
         return COMPUTE_API.attach_volume(context,
                                          instance,
@@ -349,7 +349,7 @@ def detach_volume(instance_id, volume, context):
     context -- the os context.
     """
     try:
-        instance = get_vm(instance_id, context)
+        instance = get_vm(instance_id, context, want_objects=True)
         COMPUTE_API.detach_volume(context, instance, volume)
     except Exception as e:
         raise AttributeError(e)
@@ -363,7 +363,7 @@ def set_password_for_vm(uid, password, context):
     password -- The new password.
     context -- The os context.
     """
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
     try:
         COMPUTE_API.set_admin_password(context, instance, password)
     except Exception as e:
@@ -378,7 +378,7 @@ def get_vnc(uid, context):
     context -- the os context
     """
     console = None
-    instance = get_vm(uid, context)
+    instance = get_vm(uid, context, want_objects=True)
     try:
         console = COMPUTE_API.get_vnc_console(context, instance, 'novnc')
     except Exception:
@@ -387,7 +387,7 @@ def get_vnc(uid, context):
         return console
 
 
-def get_vm(uid, context):
+def get_vm(uid, context, want_objects=False):
     """
     Retrieve an VM instance from nova.
 
@@ -395,7 +395,7 @@ def get_vm(uid, context):
     context -- the os context
     """
     try:
-        instance = COMPUTE_API.get(context, uid, want_objects=True)
+        instance = COMPUTE_API.get(context, uid, want_objects)
     except Exception:
         raise exceptions.HTTPError(404, 'VM not found!')
     return instance

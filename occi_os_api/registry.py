@@ -168,7 +168,7 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
             entity.links.append(self._construct_storage_link(item,
                                                              entity,
                                                              extras))
-        net_links = net.get_network_details(instance['uuid'], context)
+        net_links = net.get_network_details_from_instance(instance, context)
         for net_type in ['public', 'admin']:
             for item in net_links[net_type]:
                 link = self._construct_network_link(item, entity,
@@ -192,7 +192,7 @@ class OCCIRegistry(occi_registry.NonePersistentRegistry):
         try:
             # XXX should use regular expressions?
             if loc == infrastructure.COMPUTE.location:
-                compute_vm = vm.get_vm(identifier, context)
+                compute_vm = vm.get_vm(identifier, context, False)
                 return self._construct_occi_compute(compute_vm, extras)
             elif loc == infrastructure.STORAGE.location:
                 vol = storage.get_storage(identifier, context)
